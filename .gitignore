@@ -1,0 +1,14 @@
+# Local operating-system and editor files
+.DS_Store
+*.swp
+*~
+
+# Credentials and private configuration
+.env
+.env.*
+*.key
+*.pem
+id_rsa*
+id_ed25519*
+.codex/
+.hermes/
