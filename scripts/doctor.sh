@@ -58,12 +58,41 @@ check_command() {
   local label="$1"
   local command_name="$2"
   local action="$3"
+  local version_flag="${4:---version}"
 
-  if command -v "$command_name" >/dev/null 2>&1; then
-    pass "$label is installed."
-  else
+  if ! command -v "$command_name" >/dev/null 2>&1; then
     fail "$label is missing. $action"
+  elif ! timeout 15 "$command_name" "$version_flag" >/dev/null 2>&1; then
+    fail "$label could not run successfully within 15 seconds. Check: $command_name $version_flag. $action"
+  else
+    pass "$label is installed and runs."
   fi
+}
+
+check_git_identity() {
+  command -v git >/dev/null 2>&1 || return
+  local key
+  for key in user.name user.email; do
+    if [[ -n "$(git config --get "$key" 2>/dev/null)" ]]; then
+      pass "Git $key is configured for this repository."
+    else
+      warn "Git $key is unset here. Set it with git config --global $key '<value>', or configure it in each project before committing."
+    fi
+  done
+}
+
+check_login_path() {
+  local agent
+  for agent in codex hermes; do
+    if env -i HOME="$HOME" USER="$(id -un)" LOGNAME="$(id -un)" \
+      SHELL=/bin/bash PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+      timeout 15 /bin/bash -lc 'command -v "$1" >/dev/null 2>&1' hatchery "$agent" \
+      >/dev/null 2>&1; then
+      pass "$agent is available in a fresh Bash login shell."
+    else
+      fail "$agent is unavailable in a fresh Bash login shell. Add ~/.local/bin to PATH in your active Bash login profile, reconnect over SSH, and run: $agent --version"
+    fi
+  done
 }
 
 check_github_auth() {
@@ -79,8 +108,10 @@ check_github_auth() {
 }
 
 check_workspace() {
-  if [[ -d "$HOME/projects" ]]; then
-    pass "Workspace exists at $HOME/projects."
+  if [[ -d "$HOME/projects" && -w "$HOME/projects" && -x "$HOME/projects" ]]; then
+    pass "Workspace exists and is writable at $HOME/projects."
+  elif [[ -d "$HOME/projects" ]]; then
+    fail "Workspace is not writable or searchable at $HOME/projects. Check its ownership and permissions with: ls -ld ~/projects"
   else
     fail "Workspace is missing. Run: mkdir -p \"$HOME/projects\""
   fi
@@ -93,10 +124,12 @@ main() {
   check_ssh
   check_command 'Git' git 'Run: sudo apt-get install git'
   check_command 'GitHub CLI' gh 'Run: sudo apt-get install gh'
-  check_command 'tmux' tmux 'Run: sudo apt-get install tmux'
+  check_command 'tmux' tmux 'Run: sudo apt-get install tmux' -V
   check_command 'Node.js (required by Hermes)' node 'Re-run make bootstrap to let the Hermes installer provide Node.js.'
   check_command 'Codex' codex 'Re-run make bootstrap.'
   check_command 'Hermes' hermes 'Re-run make bootstrap.'
+  check_login_path
+  check_git_identity
   check_github_auth
   check_workspace
 
@@ -108,4 +141,6 @@ main() {
   printf '\nHatchery system components are ready. Resolve any warnings above.\n'
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

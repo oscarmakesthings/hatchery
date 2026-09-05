@@ -8,7 +8,7 @@ help:
 		'  make help       Show this help.' \
 		'  make bootstrap  Configure an Ubuntu 24.04 VPS.' \
 		'  make doctor     Check whether Hatchery is ready.' \
-		'  make validate   Validate repository shell scripts.'
+		'  make validate   Check shell scripts and run isolated behavioral tests.'
 
 bootstrap:
 	@./scripts/bootstrap.sh
@@ -17,9 +17,10 @@ doctor:
 	@./scripts/doctor.sh
 
 validate:
-	@bash -n scripts/bootstrap.sh scripts/doctor.sh
+	@for script in scripts/*.sh tests/*.sh; do bash -n "$$script" || exit; done
 	@if command -v shellcheck >/dev/null 2>&1; then \
-		shellcheck scripts/bootstrap.sh scripts/doctor.sh; \
+		shellcheck scripts/*.sh tests/*.sh; \
 	else \
 		printf '%s\n' 'ShellCheck not installed; skipping ShellCheck.'; \
 	fi
+	@bash tests/behavior.sh

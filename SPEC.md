@@ -161,8 +161,9 @@ At minimum:
 
 - run shell syntax checks on shell scripts
 - run ShellCheck if ShellCheck is installed
+- run isolated behavioral tests using temporary home directories and stubbed external commands
 
-Validation must not modify the machine.
+Validation must not modify system packages or user configuration. Tests may create temporary fixtures and remove them afterward.
 
 ## Bootstrap Contract
 

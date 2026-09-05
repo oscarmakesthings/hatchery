@@ -80,25 +80,18 @@ install_hermes() {
 }
 
 install_tmux_config() {
-  local current_source=''
-  local backup=''
-
-  if [[ -L "$TMUX_TARGET" ]]; then
-    current_source="$(readlink -f -- "$TMUX_TARGET" 2>/dev/null || true)"
-  fi
-
-  if [[ "$current_source" == "$TMUX_SOURCE" ]]; then
+  if [[ -L "$TMUX_TARGET" && "$(readlink -- "$TMUX_TARGET")" == "$TMUX_SOURCE" ]]; then
     log 'Hatchery tmux configuration is already installed.'
     return
   fi
 
   if [[ -e "$TMUX_TARGET" || -L "$TMUX_TARGET" ]]; then
-    backup="$TMUX_TARGET.hatchery-backup.$(date -u +%Y%m%dT%H%M%SZ).$$"
-    cp -a -- "$TMUX_TARGET" "$backup"
-    log "Backed up existing tmux configuration to $backup"
+    log "Preserving existing tmux configuration at $TMUX_TARGET"
+    log 'To opt into Hatchery defaults, see docs/setup-vps.md; existing settings remain active.'
+    return
   fi
 
-  ln -sfn -- "$TMUX_SOURCE" "$TMUX_TARGET"
+  ln -s -- "$TMUX_SOURCE" "$TMUX_TARGET"
   log "Installed Hatchery tmux configuration at $TMUX_TARGET"
 }
 
@@ -131,4 +124,6 @@ main() {
   "$SCRIPT_DIR/doctor.sh"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
